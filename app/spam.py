@@ -2,8 +2,8 @@ from sqlalchemy.orm import Session
 import app.models as models
 import app.schemas as schemas
 import app.crud as crud
-
 from redis import Redis
+
 redis = Redis(host='redis', port=6379)
 
 def report_spam(db: Session, msg: models.PrivateMessage):
