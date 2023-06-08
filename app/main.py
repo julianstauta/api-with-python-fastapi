@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
 from .database import SessionLocal, engine
+from app.auth.jwt_handler import signJWT
 
 import redis
 
@@ -72,4 +73,15 @@ def put_update(data: schemas.PrivateMessageUpdate, db: Session = Depends(get_db)
     crud.update_messages(db=db, data=data)
     return {"msg": "Success"}
 
-
+@app.post("/users/login")
+def user_login(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    email = user.email
+    pword = user.password
+    db_user = crud.get_user_by_email(db, email=email)
+    if db_user is None:
+        raise HTTPException(status_code=400, detail="User does not exists")
+    if db_user.hashed_password == pword + "notreallyhashed":
+        print("loged in !!!!")
+        return signJWT(user.email)
+    else:
+        raise HTTPException(status_code=400, detail="User and password does't match")
