@@ -65,42 +65,15 @@ def update_messages(db: Session, data:schemas.PrivateMessageUpdate):
         raise HTTPException(status_code=422, detail='Please provide a list of message IDs.')
     elif len(message_ids) > MAX_PER_PAGE:
         raise HTTPException(status_code=422, detail='Requested too many messages.')
-    message_ids = [str(_) for _ in message_ids]
+    message_ids = [str(ids) for ids in message_ids]
     read = _get_and_validate_optional_boolean(data.read)
     trash = _get_and_validate_optional_boolean(data.trash)
     spam = _get_and_validate_optional_boolean(data.spam)
 
-    messages = db.query(models.PrivateMessage).where(models.PrivateMessage.id.in_(message_ids)).all()
-    # Silently discard non-owned messages.
-    messages = [_ for _ in messages if _.isOwner()]
-    for message in messages:
-        update_dict = {}
-        if message['folder'] == 'deleted':
-            continue
-        if message['folder'] == 'sent':
-            if trash:
-                update_dict['folder'] = 'deleted'
-        else:
-            if trash is True:
-                update_dict['folder'] = 'trash'
-            elif trash is False:
-                    update_dict['folder'] = 'inbox'
-            if spam is True:
-                update_dict['folder'] = 'spam'
-                message.increment_spam_counter()
-            elif spam is False:
-                message.decrement_spam_counter
-                update_dict['folder'] = 'inbox'
-        
-        #only update the (un)read state if explicitly set, will be None if not set
-            if read is True:
-                update_dict['unread'] = 'N'
-            elif read is False:
-                update_dict['unread'] = 'Y'
-        
-        query = db.query(models.PrivateMessage).where(models.PrivateMessage.id == message.id)
-        query.update(update_dict)
-        db.commit()
+    set_folder_to = "read" if read else "trash" if trash else "spam" if spam else "inbox" 
+
+    db.query(models.PrivateMessage).filter(models.PrivateMessage.id.in_(message_ids)).update({'folder': set_folder_to})
+    db.commit()
 
                                     
 def _get_and_validate_optional_boolean(value):

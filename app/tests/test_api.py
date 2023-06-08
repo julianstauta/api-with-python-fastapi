@@ -81,7 +81,7 @@ def create_new_user(db: Session, email: str, p: str) -> models.User:
     new_user = schemas.UserCreate(email = email, password = p)
     return crud.create_user(db=db, user=new_user)
 
-def test_report_spam(session:Session):
+def test_report_spam_one_user(session:Session):
     # setup
     def get_session_override():
         return session 
@@ -89,14 +89,25 @@ def test_report_spam(session:Session):
     user_1 = create_new_user(session, "test1@test.com", "x")
     user_2 = create_new_user(session, "test2@test.com", "x")
     msg_1 = create_message(session, user_2.id, user_1.id)
+    msg_2 = create_message(session, user_2.id, user_1.id)
+    msg_3 = create_message(session, user_2.id, user_1.id)
 
     sender_key = spam.get_spam_counter_redis_key(msg_1.from_userid)
+    sender_dict_key = spam.get_spam_user_dict(msg_1.from_userid)
     initial_count = 0
     redis.set(sender_key, initial_count)
+    redis.delete(sender_dict_key)
   
     spam.report_spam(session, msg_1)
+    spam.report_spam(session, msg_2)
+    spam.report_spam(session, msg_3)
     session.refresh(msg_1)
+    session.refresh(msg_2)
+    session.refresh(msg_3)
+
     assert msg_1.folder == "spam"
+    assert msg_2.folder == "spam"
+    assert msg_3.folder == "spam"
 
     after_count = int(redis.get(sender_key))
     assert after_count == initial_count + 1
@@ -104,9 +115,82 @@ def test_report_spam(session:Session):
     # teardown
     session.query(models.PrivateMessage).filter(models.PrivateMessage.id==msg_1.id).delete()
 
+def test_report_spam_2_users(session:Session):
+    # setup
+    def get_session_override():
+        return session 
 
+    user_1 = create_new_user(session, "test1@test.com", "x")
+    user_2 = create_new_user(session, "test2@test.com", "x")
+    user_3 = create_new_user(session, "test3@test.com", "x")
+    msg_1 = create_message(session, user_2.id, user_1.id)
+    msg_2 = create_message(session, user_2.id, user_1.id)
+    msg_3 = create_message(session, user_2.id, user_3.id)
+
+    sender_key = spam.get_spam_counter_redis_key(msg_1.from_userid)
+    sender_dict_key = spam.get_spam_user_dict(msg_1.from_userid)
+    initial_count = 0
+    redis.set(sender_key, initial_count)
+    redis.delete(sender_dict_key)
+  
+    spam.report_spam(session, msg_1)
+    spam.report_spam(session, msg_2)
+    spam.report_spam(session, msg_3)
+    session.refresh(msg_1)
+
+    assert msg_1.folder == "spam"
+    assert msg_2.folder == "spam"
+    assert msg_3.folder == "spam"
+
+    after_count = int(redis.get(sender_key))
+    assert after_count == initial_count + 2
+
+    # teardown
+    session.query(models.PrivateMessage).filter(models.PrivateMessage.id==msg_1.id).delete()
+    sender_dict_key = spam.get_spam_user_dict(msg_1.from_userid)
+    redis.delete(sender_key)
+    redis.delete(sender_dict_key)
     
+def test_report_un_spam_one_user(session:Session):
+    # setup
+    def get_session_override():
+        return session 
 
+    user_1 = create_new_user(session, "test1@test.com", "x")
+    user_2 = create_new_user(session, "test2@test.com", "x")
+    msg_1 = create_message(session, user_2.id, user_1.id)
+    msg_2 = create_message(session, user_2.id, user_1.id)
+    msg_3 = create_message(session, user_2.id, user_1.id)
+
+    sender_key = spam.get_spam_counter_redis_key(msg_1.from_userid)
+    sender_dict_key = spam.get_spam_user_dict(msg_1.from_userid)
+    initial_count = 0
+    redis.set(sender_key, initial_count)
+    redis.delete(sender_dict_key)
+  
+    spam.report_spam(session, msg_1)
+    spam.report_spam(session, msg_2)
+    spam.report_spam(session, msg_3)
+    session.refresh(msg_1)
+    session.refresh(msg_2)
+    session.refresh(msg_3)
+
+
+    assert msg_1.folder == "spam"
+    assert msg_2.folder == "spam"
+    assert msg_3.folder == "spam"
+
+    spam.un_spam(session, msg_1)
+    spam.un_spam(session, msg_2)
+    spam.un_spam(session, msg_3)
+
+    assert msg_1.folder == "inbox"
+
+    after_count = int(redis.get(sender_key))
+    assert after_count == initial_count
+
+    # teardown
+    session.query(models.PrivateMessage).filter(models.PrivateMessage.id==msg_1.id).delete()
 
 
     
