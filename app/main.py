@@ -1,9 +1,10 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
 from .database import SessionLocal, engine
 from app.auth.jwt_handler import signJWT
+from app.auth.jwt_bearer import jwtBearer
 
 import redis
 
@@ -47,29 +48,29 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     return db_user
 
 
-@app.post("/users/{user_id}/items/", response_model=schemas.Item)
+@app.post("/users/{user_id}/items/", dependencies=[Depends(jwtBearer())], response_model=schemas.Item)
 def create_item_for_user(
     user_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)
 ):
     return crud.create_user_item(db=db, item=item, user_id=user_id)
 
 
-@app.get("/items/", response_model=list[schemas.Item])
+@app.get("/items/", dependencies=[Depends(jwtBearer())], response_model=list[schemas.Item])
 def read_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     items = crud.get_items(db, skip=skip, limit=limit)
     return items
 
-@app.get("/msg/list/", response_model=list[schemas.PrivateMessage])
+@app.get("/msg/list/", dependencies=[Depends(jwtBearer())], response_model=list[schemas.PrivateMessage])
 def get_message_list(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     msg_list = crud.get_msg_list(db, skip=skip, limit=limit)
     return msg_list
 
-@app.post("/msg/create/", response_model=schemas.PrivateMessage)
+@app.post("/msg/create/", dependencies=[Depends(jwtBearer())], response_model=schemas.PrivateMessage)
 def create_message(msg: schemas.PrivateMessageCreate, db: Session = Depends(get_db)):
     return crud.create_message(db=db, private_message=msg)
 
 @app.put("/msg/list/")
-def put_update(data: schemas.PrivateMessageUpdate, db: Session = Depends(get_db)):
+def put_update(data: schemas.PrivateMessageUpdate, dependencies=[Depends(jwtBearer())], db: Session = Depends(get_db)):
     crud.update_messages(db=db, data=data)
     return {"msg": "Success"}
 
