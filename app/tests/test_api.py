@@ -45,7 +45,6 @@ def test_messages_put_mark_read_and_deleted(session:Session):
         "/msg/list/",
         json=data,
     )
-
     # verify
     assert response.status_code == 200
     assert response.json() == {"msg": "Success"}
@@ -192,5 +191,30 @@ def test_report_un_spam_one_user(session:Session):
     # teardown
     session.query(models.PrivateMessage).filter(models.PrivateMessage.id==msg_1.id).delete()
 
+def test_update_messages(session:Session):
+    # setup
+    def get_session_override():
+        return session
+    
+    data={
+        "message_id_list": [
+            1, 2, 3, 4
+        ],
+        "read": "true",
+        "trash": "false",
+        "spam": "false"
+    }
+    
+    response = client.put(
+        "/msg/list/",
+        json=data,
+    )
 
+    assert response.status_code == 200
+    assert response.json() == {"msg": "Success"}
+
+    messages = crud.get_msg_list(session, skip=0, limit=4)
+
+    for message in messages:
+        assert message.folder == "inbox"
     

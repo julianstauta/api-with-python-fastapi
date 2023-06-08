@@ -70,7 +70,7 @@ def create_message(msg: schemas.PrivateMessageCreate, db: Session = Depends(get_
     return crud.create_message(db=db, private_message=msg)
 
 @app.put("/msg/list/")
-def put_update(data: schemas.PrivateMessageUpdate, dependencies=[Depends(jwtBearer())], db: Session = Depends(get_db)):
+def put_update(data: schemas.PrivateMessageUpdate, db: Session = Depends(get_db)):
     crud.update_messages(db=db, data=data)
     return {"msg": "Success"}
 

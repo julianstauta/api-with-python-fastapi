@@ -66,13 +66,18 @@ def update_messages(db: Session, data:schemas.PrivateMessageUpdate):
     elif len(message_ids) > MAX_PER_PAGE:
         raise HTTPException(status_code=422, detail='Requested too many messages.')
     message_ids = [str(ids) for ids in message_ids]
+
     read = _get_and_validate_optional_boolean(data.read)
     trash = _get_and_validate_optional_boolean(data.trash)
     spam = _get_and_validate_optional_boolean(data.spam)
 
-    set_folder_to = "read" if read else "trash" if trash else "spam" if spam else "inbox" 
-
-    db.query(models.PrivateMessage).filter(models.PrivateMessage.id.in_(message_ids)).update({'folder': set_folder_to})
+    set_folder_to = "trash" if trash else "spam" if spam else "inbox" 
+    print(set_folder_to, read)
+    if read:
+        db.query(models.PrivateMessage).filter(models.PrivateMessage.id.in_(message_ids)).update({'folder': set_folder_to, 'unread': 'N'})
+    else:
+        db.query(models.PrivateMessage).filter(models.PrivateMessage.id.in_(message_ids)).update({'folder': set_folder_to, 'unread': 'Y'})
+    
     db.commit()
 
                                     
